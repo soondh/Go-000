@@ -13,15 +13,15 @@ import (
 )
 
 func main() {
-	//服务器开关
+	//root process terminate channel
 	stopC := make(chan struct{})
-	//创建带有cancel的ctx
+	//create ctx
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	//创建errgroup
+	//create errgroup
 	g, _ := errgroup.WithContext(ctx)
 
-	// 启动server
+	// start multi-server
 	server1 := newServer("server1", ":19990")
 	server2 := newServer("server2", ":19991")
 
@@ -41,7 +41,7 @@ func main() {
 		return nil
 	})
 
-	//mock error
+	//mock error with timeout 10 seconds
 	g.Go(func() error {
 		time.Sleep(10 * time.Second)
 		err :=  errors.New("mock error")
@@ -49,7 +49,7 @@ func main() {
 		return err
 	})
 
-	//Catch signal
+	//catch signal
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
@@ -78,6 +78,8 @@ func main() {
 		}
 	}()
 
+	//shutdown server after canecl() called.
+	//then close the chan stopC to terminate the root process.
 	go func() {
 		<- ctx.Done()
 		go func() {
@@ -92,11 +94,12 @@ func main() {
 			close(stopC)
 			return
 		}()
-		// 超时保护
+		// overtime protection
 		<-time.After(time.Minute * 5)
 		log.Println("shutdown over-time, force to exit")
 		close(stopC)
 		return
 	}()
+
 	<- stopC
 }

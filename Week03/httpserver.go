@@ -1,7 +1,9 @@
 //simple server struct without handler
 package main
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type server struct {
 	*http.Server
